@@ -1,7 +1,9 @@
 <template>
   <section id="calculator">
     <div class="history"></div>
-    <div class="result" ref="resultRef">0</div>
+    <div class="result" ref="resultRef">
+      <input type="text" value="0" ref="resultOutput" v-model="resultValue" />
+    </div>
     <div class="panel">
       <div class="panel-key" id="percent" @click="calculate('percent')">%</div>
       <div class="panel-key" id="root" @click="calculate('root')">√x</div>
@@ -10,7 +12,7 @@
 
       <div class="panel-key" id="CE">CE</div>
       <div class="panel-key" id="C" @click="clear()">C</div>
-      <div class="panel-key" id="delete">DEL</div>
+      <div class="panel-key" id="delete" @click="deleteLastChar()">DEL</div>
       <div class="panel-key" id="div" @click="addOperand('div')">/</div>
 
       <div class="panel-key num" id="num_7" @click="dial('7')">7</div>
@@ -37,14 +39,21 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue } from "vue-property-decorator";
+import { Component, Vue, Watch } from "vue-property-decorator";
 
 @Component
 export default class Calculator extends Vue {
   operationList: Array<string> = [];
   operationActive: boolean = false;
 
+  resultValue: string = "0";
+
   mounted() {}
+
+  @Watch("resultValue")
+  onResultChanged(currentValue: string) {
+    if (currentValue.length == 0) this.resultValue = "0";
+  }
 
   resetState() {
     this.operationList.length = 0;
@@ -52,18 +61,24 @@ export default class Calculator extends Vue {
   }
 
   clear() {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
+    this.resultValue = "0";
 
     this.resetState();
-    resultRef.innerText = "0";
+  }
+
+  deleteLastChar() {
+    if (this.resultValue.length == 0) return;
+
+    this.resultValue = this.resultValue.substring(
+      0,
+      this.resultValue.length - 1
+    );
   }
 
   resolveOperation() {
     if (this.operationList.length < 3) return;
     if (isNaN(parseFloat(this.operationList[0]))) return;
     if (isNaN(parseFloat(this.operationList[2]))) return;
-
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
 
     const number1: number = parseFloat(this.operationList[0]);
     const number2: number = parseFloat(this.operationList[2]);
@@ -95,15 +110,11 @@ export default class Calculator extends Vue {
     this.operationList.splice(0, 3);
     this.operationList.unshift(result.toString());
 
-    resultRef.innerText = result.toString();
-
-    console.log(this.operationList);
+    this.resultValue = result.toString();
   }
 
   addOperand(operand: string) {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
-
-    this.operationList.push(resultRef.innerText);
+    this.operationList.push(this.resultValue.toString());
     this.operationList.push(operand);
 
     this.operationActive = true;
@@ -112,16 +123,10 @@ export default class Calculator extends Vue {
   }
 
   calculate(type: string) {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
-
-    this.operationList.push(resultRef.innerText);
+    this.operationList.push(this.resultValue.toString());
     this.resolveOperation();
 
-    let result: number = parseFloat(
-      this.operationList.length == 0
-        ? resultRef.innerText
-        : this.operationList[0]
-    );
+    let result: number = parseFloat(this.operationList[0]);
 
     switch (type) {
       case "percent":
@@ -142,36 +147,31 @@ export default class Calculator extends Vue {
     }
     result = parseFloat(result.toFixed(5));
 
-    resultRef.innerText = result.toString();
+    this.resultValue = result.toString();
     this.operationList[0] = result.toString();
     this.resetState();
   }
 
   equals() {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
-    this.operationList.push(resultRef.innerText);
+    this.operationList.push(this.resultValue.toString());
 
     this.resolveOperation();
     this.resetState();
   }
 
   dot() {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
+    if (this.resultValue.includes(".") || this.resultValue.length == 0) return;
 
-    if (resultRef.innerText.includes(".") || resultRef.innerText.length == 0)
-      return;
-
-    resultRef.innerText += ".";
+    this.resultValue += ".";
   }
 
   dial(num: number): void {
-    const resultRef: HTMLElement = this.$refs.resultRef as HTMLElement;
-    const resultValue: number = parseFloat(resultRef.innerText);
+    if (this.resultValue.length > 18) return;
 
-    if (resultRef.innerText == "0" || this.operationActive) {
-      resultRef.innerText = num.toString();
+    if (this.resultValue == "0" || this.operationActive) {
+      this.resultValue = num.toString();
       this.operationActive = false;
-    } else resultRef.innerText += num.toString();
+    } else this.resultValue += num.toString();
   }
 }
 </script>
@@ -192,13 +192,17 @@ export default class Calculator extends Vue {
   display: flex;
   align-items: center;
 
-  font-size: 2.5rem;
   padding: 0.5rem;
 
   background-color: #0091d4;
-  color: white;
-
   overflow: hidden;
+
+  & > input {
+    border: none;
+    background: none;
+    color: white;
+    font-size: 2.5rem;
+  }
 }
 
 .panel {
