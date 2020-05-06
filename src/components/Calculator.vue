@@ -2,6 +2,7 @@
   <section id="calculator">
     <div class="history"></div>
     <div class="result" ref="resultRef">
+      <div class="log">{{ operationLog }}</div>
       <input type="text" value="0" ref="resultOutput" v-model="resultValue" />
     </div>
     <div class="panel">
@@ -10,7 +11,7 @@
       <div class="panel-key" id="power" @click="calculate('power')">^2</div>
       <div class="panel-key" id="fraction" @click="calculate('fraction')">1/x</div>
 
-      <div class="panel-key" id="CE">CE</div>
+      <div class="panel-key" id="CE" @click="clearEntry()">CE</div>
       <div class="panel-key" id="C" @click="clear()">C</div>
       <div class="panel-key" id="delete" @click="deleteLastChar()">DEL</div>
       <div class="panel-key" id="div" @click="addOperand('div')">/</div>
@@ -47,23 +48,56 @@ export default class Calculator extends Vue {
   operationActive: boolean = false;
 
   resultValue: string = "0";
+  lastValue: string = "";
 
-  mounted() {}
+  isVerified: boolean = true;
+
+  operationLog: string = "";
+
+  entryCleared: boolean = false;
+
+  verifyInput(): boolean {
+    const numbers: RegExp = /^[\d.]+$/g;
+
+    return numbers.test(this.resultValue);
+  }
 
   @Watch("resultValue")
-  onResultChanged(currentValue: string) {
+  onResultChanged(currentValue: string, oldValue: string) {
     if (currentValue.length == 0) this.resultValue = "0";
+
+    this.isVerified = this.verifyInput();
+
+    if (!this.isVerified) this.resultValue = oldValue;
   }
 
   resetState() {
     this.operationList.length = 0;
-    this.operationActive = true;
+  }
+
+  dot() {
+    if (this.resultValue.includes(".") || this.resultValue.length == 0) return;
+
+    this.resultValue += ".";
   }
 
   clear() {
     this.resultValue = "0";
 
     this.resetState();
+  }
+
+  clearEntry() {
+    console.log("CE");
+
+    if (this.operationList.length == 0) return;
+
+    if (isNaN(parseFloat(this.operationList[this.operationList.length - 1]))) {
+      this.operationList.splice(-1);
+      console.log(this.operationList);
+
+      this.entryCleared = true;
+    }
   }
 
   deleteLastChar() {
@@ -76,6 +110,8 @@ export default class Calculator extends Vue {
   }
 
   resolveOperation() {
+    if (!this.isVerified) return;
+
     if (this.operationList.length < 3) return;
     if (isNaN(parseFloat(this.operationList[0]))) return;
     if (isNaN(parseFloat(this.operationList[2]))) return;
@@ -87,23 +123,31 @@ export default class Calculator extends Vue {
 
     let result: number = 0;
 
+    this.operationLog = number1.toString();
+
     switch (operator) {
       case "plus":
         result = number1 + number2;
+        this.operationLog += "+";
         break;
       case "minus":
         result = number1 - number2;
+        this.operationLog += "-";
         break;
       case "mul":
         result = number1 * number2;
+        this.operationLog += "*";
         break;
       case "div":
         result = number1 / number2;
+        this.operationLog += "/";
         break;
 
       default:
         break;
     }
+
+    this.operationLog += number2;
 
     result = parseFloat(result.toFixed(5));
 
@@ -114,55 +158,58 @@ export default class Calculator extends Vue {
   }
 
   addOperand(operand: string) {
-    this.operationList.push(this.resultValue.toString());
-    this.operationList.push(operand);
+    if (this.operationList.length == 1) {
+      this.operationList.push(operand);
+    } else {
+      this.operationList.push(this.resultValue.toString(), operand);
+    }
 
     this.operationActive = true;
-
     this.resolveOperation();
   }
 
   calculate(type: string) {
+    if (!this.isVerified) return;
+
     this.operationList.push(this.resultValue.toString());
     this.resolveOperation();
 
-    let result: number = parseFloat(this.operationList[0]);
+    let result: number = parseFloat(this.resultValue);
+
+    this.operationLog = this.resultValue;
 
     switch (type) {
       case "percent":
         result *= 0.01;
+        this.operationLog = `(${this.operationLog})%`;
         break;
       case "root":
         result = Math.sqrt(result);
+        this.operationLog = `sqrt(${this.operationLog})`;
         break;
       case "power":
         result *= result;
+        this.operationLog = `(${this.operationLog})^2`;
         break;
       case "fraction":
         result = 1 / result;
+        this.operationLog = `1/(${this.operationLog})`;
         break;
 
       default:
         break;
     }
+
     result = parseFloat(result.toFixed(5));
 
     this.resultValue = result.toString();
     this.operationList[0] = result.toString();
-    this.resetState();
   }
 
   equals() {
     this.operationList.push(this.resultValue.toString());
 
     this.resolveOperation();
-    this.resetState();
-  }
-
-  dot() {
-    if (this.resultValue.includes(".") || this.resultValue.length == 0) return;
-
-    this.resultValue += ".";
   }
 
   dial(num: number): void {
@@ -190,9 +237,10 @@ export default class Calculator extends Vue {
 
 .result {
   display: flex;
-  align-items: center;
+  justify-content: center;
+  flex-direction: column;
 
-  padding: 0.5rem;
+  padding: 0.6rem;
 
   background-color: #0091d4;
   overflow: hidden;
@@ -201,7 +249,14 @@ export default class Calculator extends Vue {
     border: none;
     background: none;
     color: white;
-    font-size: 2.5rem;
+    font-size: 2.3rem;
+  }
+
+  & > .log {
+    color: rgb(218, 218, 218);
+    font-size: 1rem;
+
+    min-height: 1rem;
   }
 }
 
