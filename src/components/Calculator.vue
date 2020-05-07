@@ -6,7 +6,7 @@
       <input type="text" value="0" ref="resultOutput" v-model="resultValue" />
     </div>
     <div class="panel">
-      <div class="panel-key" id="percent" @click="calculate('percent')">%</div>
+      <div class="panel-key" id="percent" @click="addOperand('%')">%</div>
       <div class="panel-key" id="root" @click="calculate('root')">√x</div>
       <div class="panel-key" id="power" @click="calculate('power')">^2</div>
       <div class="panel-key" id="fraction" @click="calculate('fraction')">1/x</div>
@@ -14,27 +14,27 @@
       <div class="panel-key" id="CE" @click="clearEntry()">CE</div>
       <div class="panel-key" id="C" @click="clear()">C</div>
       <div class="panel-key" id="delete" @click="deleteLastChar()">DEL</div>
-      <div class="panel-key" id="div" @click="addOperand('div')">/</div>
+      <div class="panel-key" id="div" @click="addOperand('/')">/</div>
 
       <div class="panel-key num" id="num_7" @click="dial('7')">7</div>
       <div class="panel-key num" id="num_8" @click="dial('8')">8</div>
       <div class="panel-key num" id="num_9" @click="dial('9')">9</div>
-      <div class="panel-key" id="mul" @click="addOperand('mul')">*</div>
+      <div class="panel-key" id="mul" @click="addOperand('x')">*</div>
 
       <div class="panel-key num" id="num_4" @click="dial('4')">4</div>
       <div class="panel-key num" id="num_5" @click="dial('5')">5</div>
       <div class="panel-key num" id="num_6" @click="dial('6')">6</div>
-      <div class="panel-key" id="minus" @click="addOperand('minus')">-</div>
+      <div class="panel-key" id="minus" @click="addOperand('-')">-</div>
 
       <div class="panel-key num" id="num_1" @click="dial('1')">1</div>
       <div class="panel-key num" id="num_2" @click="dial('2')">2</div>
       <div class="panel-key num" id="num_3" @click="dial('3')">3</div>
-      <div class="panel-key" id="plus" @click="addOperand('plus')">+</div>
+      <div class="panel-key" id="plus" @click="addOperand('+')">+</div>
 
       <div class="panel-key" id="sign">+/-</div>
       <div class="panel-key num" id="num_0" @click="dial('0')">0</div>
       <div class="panel-key" id="dot" @click="dot()">.</div>
-      <div class="panel-key" id="equals" @click="equals()">=</div>
+      <div class="panel-key" id="equals" @click="solve()">=</div>
     </div>
   </section>
 </template>
@@ -71,6 +71,10 @@ export default class Calculator extends Vue {
     if (!this.isVerified) this.resultValue = oldValue;
   }
 
+  isNumber(str: string): boolean {
+    return !isNaN(parseFloat(str));
+  }
+
   resetState() {
     this.operationList.length = 0;
   }
@@ -85,6 +89,92 @@ export default class Calculator extends Vue {
     this.resultValue = "0";
 
     this.resetState();
+  }
+
+  solve(exprArray: string[]) {
+    let stack: string[] = [];
+    let output: string[] = [];
+    let outputStr = "";
+
+    for (let sign of exprArray) {
+      if (/\d/.test(sign)) output.push(sign);
+      else if (!/[()]/.test(sign)) {
+        let foundHigher = false;
+        for (let i = stack.length - 1; i >= 0; i--) {
+          if (stack[i] == "(" && foundHigher) break;
+
+          if (stack[i] == "*" || stack[i] == "/") foundHigher = true;
+        }
+
+        if (/[+-]/.test(sign) && foundHigher) {
+          for (let i = stack.length - 1; i >= 0; i--) {
+            if (stack[i] == "(") break;
+
+            output.push(stack.pop() as string);
+          }
+        }
+
+        stack.push(sign);
+      }
+
+      if (sign === "(") stack.push(sign);
+
+      if (sign === ")") {
+        for (let i = stack.length - 1; i >= 0; i--) {
+          if (stack[i] == "(") {
+            stack.pop();
+            break;
+          }
+
+          output.push(stack.pop() as string);
+        }
+      }
+    }
+
+    output.push(...stack);
+    stack.length = 0;
+
+    output.forEach(el => (outputStr += el));
+
+    this.solveRPN(output);
+  }
+
+  solveRPN(rpnArray: string[]) {
+    let stack: string[] = [];
+
+    for (let sign of rpnArray) {
+      if (/\d/.test(sign)) {
+        stack.push(sign);
+      } else {
+        const arg1: number = parseFloat(stack[stack.length - 1]);
+        const arg2: number = parseFloat(stack[stack.length - 2]);
+
+        stack.splice(-2);
+
+        switch (sign) {
+          case "+":
+            stack.push((arg2 + arg1).toString());
+            break;
+
+          case "-":
+            stack.push((arg2 - arg1).toString());
+            break;
+
+          case "*":
+            stack.push((arg2 * arg1).toString());
+            break;
+
+          case "/":
+            stack.push((arg2 / arg1).toString());
+            break;
+
+          default:
+            break;
+        }
+      }
+
+      console.log(stack);
+    }
   }
 
   clearEntry() {
@@ -111,58 +201,20 @@ export default class Calculator extends Vue {
 
   resolveOperation() {
     if (!this.isVerified) return;
-
-    if (this.operationList.length < 3) return;
-    if (isNaN(parseFloat(this.operationList[0]))) return;
-    if (isNaN(parseFloat(this.operationList[2]))) return;
-
-    const number1: number = parseFloat(this.operationList[0]);
-    const number2: number = parseFloat(this.operationList[2]);
-
-    const operator: string = this.operationList[1];
-
-    let result: number = 0;
-
-    this.operationLog = number1.toString();
-
-    switch (operator) {
-      case "plus":
-        result = number1 + number2;
-        this.operationLog += "+";
-        break;
-      case "minus":
-        result = number1 - number2;
-        this.operationLog += "-";
-        break;
-      case "mul":
-        result = number1 * number2;
-        this.operationLog += "*";
-        break;
-      case "div":
-        result = number1 / number2;
-        this.operationLog += "/";
-        break;
-
-      default:
-        break;
-    }
-
-    this.operationLog += number2;
-
-    result = parseFloat(result.toFixed(5));
-
-    this.operationList.splice(0, 3);
-    this.operationList.unshift(result.toString());
-
-    this.resultValue = result.toString();
   }
 
   addOperand(operand: string) {
-    if (this.operationList.length == 1) {
-      this.operationList.push(operand);
-    } else {
+    if (isNaN(parseFloat(this.operationList[this.operationList.length - 1]))) {
       this.operationList.push(this.resultValue.toString(), operand);
+    } else {
+      this.operationList.push(operand);
     }
+
+    // if (this.operationList.length == 1) {
+    //   this.operationList.push(operand);
+    // } else {
+    //   this.operationList.push(this.resultValue.toString(), operand);
+    // }
 
     this.operationActive = true;
     this.resolveOperation();
@@ -171,8 +223,10 @@ export default class Calculator extends Vue {
   calculate(type: string) {
     if (!this.isVerified) return;
 
-    this.operationList.push(this.resultValue.toString());
+    // this.operationList.push(this.resultValue.toString());
     this.resolveOperation();
+
+    console.log(this.operationList);
 
     let result: number = parseFloat(this.resultValue);
 
@@ -204,6 +258,9 @@ export default class Calculator extends Vue {
 
     this.resultValue = result.toString();
     this.operationList[0] = result.toString();
+
+    this.operationList.push(this.resultValue.toString());
+    this.resolveOperation();
   }
 
   equals() {
