@@ -2,38 +2,37 @@
   <section id="calculator">
     <div class="history"></div>
     <div class="result" ref="resultRef">
-      <div class="log">{{ operationLog }}</div>
       <input type="text" value="0" ref="resultOutput" v-model="resultValue" />
     </div>
     <div class="panel">
-      <div class="panel-key" id="percent" @click="addOperand('%')">%</div>
-      <div class="panel-key" id="root" @click="calculate('root')">√x</div>
-      <div class="panel-key" id="power" @click="calculate('power')">^2</div>
-      <div class="panel-key" id="fraction" @click="calculate('fraction')">1/x</div>
-
-      <div class="panel-key" id="CE" @click="clearEntry()">CE</div>
+      <div class="panel-key" id="percent" @click="add('%')">%</div>
+      <div class="panel-key" id="root" @click="add('r')">√x</div>
+      <div class="panel-key" id="power" @click="add('p')">^2</div>
       <div class="panel-key" id="C" @click="clear()">C</div>
+
       <div class="panel-key" id="delete" @click="deleteLastChar()">DEL</div>
-      <div class="panel-key" id="div" @click="addOperand('/')">/</div>
+      <div class="panel-key" id="div" @click="add('(')">(</div>
+      <div class="panel-key" id="div" @click="add(')')">)</div>
+      <div class="panel-key" id="div" @click="add('/')">/</div>
 
-      <div class="panel-key num" id="num_7" @click="dial('7')">7</div>
-      <div class="panel-key num" id="num_8" @click="dial('8')">8</div>
-      <div class="panel-key num" id="num_9" @click="dial('9')">9</div>
-      <div class="panel-key" id="mul" @click="addOperand('x')">*</div>
+      <div class="panel-key num" id="num_7" @click="add('7')">7</div>
+      <div class="panel-key num" id="num_8" @click="add('8')">8</div>
+      <div class="panel-key num" id="num_9" @click="add('9')">9</div>
+      <div class="panel-key" id="mul" @click="add('*')">*</div>
 
-      <div class="panel-key num" id="num_4" @click="dial('4')">4</div>
-      <div class="panel-key num" id="num_5" @click="dial('5')">5</div>
-      <div class="panel-key num" id="num_6" @click="dial('6')">6</div>
-      <div class="panel-key" id="minus" @click="addOperand('-')">-</div>
+      <div class="panel-key num" id="num_4" @click="add('4')">4</div>
+      <div class="panel-key num" id="num_5" @click="add('5')">5</div>
+      <div class="panel-key num" id="num_6" @click="add('6')">6</div>
+      <div class="panel-key" id="minus" @click="add('-')">-</div>
 
-      <div class="panel-key num" id="num_1" @click="dial('1')">1</div>
-      <div class="panel-key num" id="num_2" @click="dial('2')">2</div>
-      <div class="panel-key num" id="num_3" @click="dial('3')">3</div>
-      <div class="panel-key" id="plus" @click="addOperand('+')">+</div>
+      <div class="panel-key num" id="num_1" @click="add('1')">1</div>
+      <div class="panel-key num" id="num_2" @click="add('2')">2</div>
+      <div class="panel-key num" id="num_3" @click="add('3')">3</div>
+      <div class="panel-key" id="plus" @click="add('+')">+</div>
 
-      <div class="panel-key" id="sign">+/-</div>
-      <div class="panel-key num" id="num_0" @click="dial('0')">0</div>
-      <div class="panel-key" id="dot" @click="dot()">.</div>
+      <div class="panel-key" id="CE">CE</div>
+      <div class="panel-key num" id="num_0" @click="add('0')">0</div>
+      <div class="panel-key" id="dot" @click="add('.')">.</div>
       <div class="panel-key" id="equals" @click="solve()">=</div>
     </div>
   </section>
@@ -44,17 +43,14 @@ import { Component, Vue, Watch } from "vue-property-decorator";
 
 @Component
 export default class Calculator extends Vue {
-  operationList: Array<string> = [];
-  operationActive: boolean = false;
-
   resultValue: string = "0";
   lastValue: string = "";
+
+  exprArray: string[] = [];
 
   isVerified: boolean = true;
 
   operationLog: string = "";
-
-  entryCleared: boolean = false;
 
   verifyInput(): boolean {
     const numbers: RegExp = /^[\d.]+$/g;
@@ -66,37 +62,39 @@ export default class Calculator extends Vue {
   onResultChanged(currentValue: string, oldValue: string) {
     if (currentValue.length == 0) this.resultValue = "0";
 
-    this.isVerified = this.verifyInput();
+    // this.isVerified = this.verifyInput();
 
-    if (!this.isVerified) this.resultValue = oldValue;
+    // if (!this.isVerified) this.resultValue = oldValue;
   }
 
-  isNumber(str: string): boolean {
-    return !isNaN(parseFloat(str));
+  add(char: string) {
+    if (this.resultValue == "0") this.resultValue = char;
+    else this.resultValue += char;
+
+    if (!/^[\d.]+$/.test(char)) {
+      if (this.lastValue.length != 0) this.exprArray.push(this.lastValue);
+      this.exprArray.push(char);
+      this.lastValue = "";
+    } else {
+      this.lastValue += char;
+    }
+
+    console.log(this.lastValue);
   }
 
-  resetState() {
-    this.operationList.length = 0;
-  }
+  solve() {
+    if (this.resultValue == "0") return;
 
-  dot() {
-    if (this.resultValue.includes(".") || this.resultValue.length == 0) return;
+    if (this.lastValue.length != 0) this.exprArray.push(this.lastValue);
 
-    this.resultValue += ".";
-  }
+    if (!/[\d)]/.test(this.exprArray[this.exprArray.length - 1]))
+      this.exprArray.pop();
 
-  clear() {
-    this.resultValue = "0";
-
-    this.resetState();
-  }
-
-  solve(exprArray: string[]) {
     let stack: string[] = [];
     let output: string[] = [];
     let outputStr = "";
 
-    for (let sign of exprArray) {
+    for (let sign of this.exprArray) {
       if (/\d/.test(sign)) output.push(sign);
       else if (!/[()]/.test(sign)) {
         let foundHigher = false;
@@ -129,12 +127,17 @@ export default class Calculator extends Vue {
           output.push(stack.pop() as string);
         }
       }
+
+      console.log(output);
     }
 
-    output.push(...stack);
+    for (let i = stack.length - 1; i >= 0; i--) output.push(stack[i]);
+
     stack.length = 0;
 
     output.forEach(el => (outputStr += el));
+
+    console.log(output);
 
     this.solveRPN(output);
   }
@@ -172,110 +175,17 @@ export default class Calculator extends Vue {
             break;
         }
       }
-
-      console.log(stack);
-    }
-  }
-
-  clearEntry() {
-    console.log("CE");
-
-    if (this.operationList.length == 0) return;
-
-    if (isNaN(parseFloat(this.operationList[this.operationList.length - 1]))) {
-      this.operationList.splice(-1);
-      console.log(this.operationList);
-
-      this.entryCleared = true;
-    }
-  }
-
-  deleteLastChar() {
-    if (this.resultValue.length == 0) return;
-
-    this.resultValue = this.resultValue.substring(
-      0,
-      this.resultValue.length - 1
-    );
-  }
-
-  resolveOperation() {
-    if (!this.isVerified) return;
-  }
-
-  addOperand(operand: string) {
-    if (isNaN(parseFloat(this.operationList[this.operationList.length - 1]))) {
-      this.operationList.push(this.resultValue.toString(), operand);
-    } else {
-      this.operationList.push(operand);
     }
 
-    // if (this.operationList.length == 1) {
-    //   this.operationList.push(operand);
-    // } else {
-    //   this.operationList.push(this.resultValue.toString(), operand);
-    // }
+    if (parseFloat(this.resultValue) != NaN) {
+      this.resultValue = stack[0];
 
-    this.operationActive = true;
-    this.resolveOperation();
-  }
+      this.lastValue = "";
+      this.exprArray.length = 0;
+      this.exprArray.push(stack[0]);
 
-  calculate(type: string) {
-    if (!this.isVerified) return;
-
-    // this.operationList.push(this.resultValue.toString());
-    this.resolveOperation();
-
-    console.log(this.operationList);
-
-    let result: number = parseFloat(this.resultValue);
-
-    this.operationLog = this.resultValue;
-
-    switch (type) {
-      case "percent":
-        result *= 0.01;
-        this.operationLog = `(${this.operationLog})%`;
-        break;
-      case "root":
-        result = Math.sqrt(result);
-        this.operationLog = `sqrt(${this.operationLog})`;
-        break;
-      case "power":
-        result *= result;
-        this.operationLog = `(${this.operationLog})^2`;
-        break;
-      case "fraction":
-        result = 1 / result;
-        this.operationLog = `1/(${this.operationLog})`;
-        break;
-
-      default:
-        break;
+      console.log(this.exprArray);
     }
-
-    result = parseFloat(result.toFixed(5));
-
-    this.resultValue = result.toString();
-    this.operationList[0] = result.toString();
-
-    this.operationList.push(this.resultValue.toString());
-    this.resolveOperation();
-  }
-
-  equals() {
-    this.operationList.push(this.resultValue.toString());
-
-    this.resolveOperation();
-  }
-
-  dial(num: number): void {
-    if (this.resultValue.length > 18) return;
-
-    if (this.resultValue == "0" || this.operationActive) {
-      this.resultValue = num.toString();
-      this.operationActive = false;
-    } else this.resultValue += num.toString();
   }
 }
 </script>
