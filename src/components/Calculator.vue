@@ -7,7 +7,7 @@
     <div class="panel">
       <div class="panel-key" id="percent" @click="add('%')">%</div>
       <div class="panel-key" id="root" @click="add('r')">√x</div>
-      <div class="panel-key" id="power" @click="add('p')">^2</div>
+      <div class="panel-key" id="power" @click="add('^2');">^2</div>
       <div class="panel-key" id="C" @click="clear()">C</div>
 
       <div class="panel-key" id="delete" @click="deleteLastChar()">DEL</div>
@@ -95,13 +95,15 @@ export default class Calculator extends Vue {
     let outputStr = "";
 
     for (let sign of this.exprArray) {
-      if (/\d/.test(sign)) output.push(sign);
+      if (/^\d/.test(sign)) output.push(sign);
       else if (!/[()]/.test(sign)) {
+        console.log(sign);
+
         let foundHigher = false;
         for (let i = stack.length - 1; i >= 0; i--) {
           if (stack[i] == "(" && foundHigher) break;
 
-          if (stack[i] == "*" || stack[i] == "/") foundHigher = true;
+          if (/[*/\^%]/.test(sign)) foundHigher = true;
         }
 
         if (/[+-]/.test(sign) && foundHigher) {
@@ -127,8 +129,6 @@ export default class Calculator extends Vue {
           output.push(stack.pop() as string);
         }
       }
-
-      console.log(output);
     }
 
     for (let i = stack.length - 1; i >= 0; i--) output.push(stack[i]);
@@ -146,12 +146,30 @@ export default class Calculator extends Vue {
     let stack: string[] = [];
 
     for (let sign of rpnArray) {
-      if (/\d/.test(sign)) {
+      if (/^\d/.test(sign)) {
         stack.push(sign);
       } else {
         const arg1: number = parseFloat(stack[stack.length - 1]);
-        const arg2: number = parseFloat(stack[stack.length - 2]);
 
+        if (/[\^%]/.test(sign)) {
+          stack.splice(-1);
+
+          if (sign.includes("^") && sign.length == 2) {
+            const factor = parseFloat(sign[1]);
+            stack.push(Math.pow(arg1, factor).toString());
+          }
+
+          if (sign == "%") {
+            console.log("%");
+
+            stack.push((arg1 * 0.01).toString());
+            console.log(stack);
+          }
+
+          continue;
+        }
+
+        const arg2: number = parseFloat(stack[stack.length - 2]);
         stack.splice(-2);
 
         switch (sign) {
@@ -170,7 +188,6 @@ export default class Calculator extends Vue {
           case "/":
             stack.push((arg2 / arg1).toString());
             break;
-
           default:
             break;
         }
@@ -183,9 +200,9 @@ export default class Calculator extends Vue {
       this.lastValue = "";
       this.exprArray.length = 0;
       this.exprArray.push(stack[0]);
-
-      console.log(this.exprArray);
     }
+
+    console.log(this.exprArray);
   }
 }
 </script>
